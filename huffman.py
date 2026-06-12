@@ -1,6 +1,5 @@
-
-
 import heapq
+import json
 
 class HuffmanNode:
     """
@@ -28,7 +27,6 @@ class HuffmanNode:
 def build_huffman_tree(text):
     """
     Construye el árbol de Huffman a partir de un texto de entrada.
-    Retorna el nodo raíz del árbol.
     """
     if not text:
         return None
@@ -40,7 +38,7 @@ def build_huffman_tree(text):
 
     # Crear cola de prioridad (min-heap)
     heap = []
-    counter = 0  # Desempate único para evitar comparar objetos HuffmanNode directamente
+    counter = 0  # Desempate único
     for char, freq in frequencies.items():
         node = HuffmanNode(value=char, frequency=freq)
         heapq.heappush(heap, (freq, counter, node))
@@ -72,8 +70,7 @@ def build_huffman_tree(text):
 
 def generate_codes(node, current_code="", codes=None):
     """
-    Recorre el árbol de Huffman recursivamente para generar los códigos
-    binarios de cada carácter.
+    Recorre el árbol de Huffman para generar los códigos binarios.
     """
     if codes is None:
         codes = {}
@@ -82,7 +79,6 @@ def generate_codes(node, current_code="", codes=None):
         return codes
 
     if node.is_leaf():
-        # Si el árbol tiene un único carácter (la raíz es hoja), se le asigna "0"
         codes[node.value] = current_code if current_code else "0"
     else:
         generate_codes(node.left, current_code + "0", codes)
@@ -98,67 +94,34 @@ def encode_text(text, codes):
     return "".join(codes[char] for char in text)
 
 
-def decode_bits(bit_string, root, total_chars):
+def decode_bits(bit_string, root):
     """
     Decodifica una cadena de bits utilizando el árbol de Huffman.
-    Se detiene exactamente al decodificar la cantidad total de caracteres original,
-    ignorando cualquier bit de relleno (padding) al final.
+    Se detiene cuando la secuencia de bits termina, sin requerir longitud del texto
+    ni caracteres especiales de parada.
     """
-    if not root or total_chars == 0:
+    if not root:
         return ""
 
     decoded_chars = []
     current_node = root
-    chars_decoded = 0
 
     for bit in bit_string:
-        if chars_decoded >= total_chars:
-            break
-
         if bit == '0':
             current_node = current_node.left
-        else:
-            if current_node.right is not None:
-                current_node = current_node.right
-            else:
-                # Si es un árbol de un solo carácter, no hay nodo derecho.
-                # Volver a evaluar o mantener el estado.
-                pass
+        elif bit == '1':
+            current_node = current_node.right
 
         if current_node is not None and current_node.is_leaf():
             decoded_chars.append(current_node.value)
-            chars_decoded += 1
             current_node = root
 
     return "".join(decoded_chars)
 
 
-def bits_to_bytes(bit_string):
-    """
-    Empaqueta una cadena de bits ('0' y '1') en un objeto de bytes.
-    Añade ceros de relleno (padding) a la derecha en el último byte si es necesario.
-    """
-    padding_len = (8 - len(bit_string) % 8) % 8
-    padded_bits = bit_string + '0' * padding_len
-    
-    byte_list = []
-    for i in range(0, len(padded_bits), 8):
-        byte_val = int(padded_bits[i:i+8], 2)
-        byte_list.append(byte_val)
-        
-    return bytes(byte_list)
-
-
-def bytes_to_bits(bytes_data):
-    """
-    Convierte un objeto de bytes en su representación de cadena de bits.
-    """
-    return "".join(f"{byte:08b}" for byte in bytes_data)
-
-
 def serialize_tree(node):
     """
-    Serializa recursivamente el árbol de Huffman a un diccionario compatible con JSON.
+    Serializa el árbol de Huffman a un diccionario compatible con JSON.
     """
     if node is None:
         return None
@@ -188,14 +151,12 @@ def deserialize_tree(data):
 
 def generate_json_structure(root, codes):
     """
-    Genera el formato JSON de pistas oficial requerido por el proyecto,
-    poblando Huffman y creando estructuras vacías/despiste para LZ77, LZ78 y LZW.
+    Genera la estructura JSON de pistas para Huffman.
     """
     huffman_struct = {
         "arbol": serialize_tree(root),
         "tabla_codigos": codes
     }
-
     return {
         "compresion": [
             {
@@ -208,14 +169,25 @@ def generate_json_structure(root, codes):
 
 if __name__ == "__main__":
     text = input("Ingrese el texto a comprimir: ")
-    root = build_huffman_tree(text)
-    codes = generate_codes(root)
-    print("codigos",codes)
+    if text:
+        root = build_huffman_tree(text)
+        codes = generate_codes(root)
+        print("Tabla de códigos generada:", codes)
 
-    encoded_text = encode_text(text, codes)
-    bytes_data = bits_to_bytes(encoded_text)
-    decoded_text = decode_bits(encoded_text, root, len(text))
-    print("decoded_text",decoded_text)
+        # Generar secuencia de bits
+        encoded_text = encode_text(text, codes)
+        print("Cadena de bits comprimida (archivo.bin):", encoded_text)
 
-    serialized_tree = generate_json_structure(root, codes)
-    print("pistas:",serialized_tree)  
+        # Generación del JSON de pistas
+        pistas = generate_json_structure(root, codes)
+        print("JSON de pistas:", pistas)
+
+        #Descompresión
+        decoded_text = decode_bits(encoded_text, root)
+        print("Texto recuperado:", decoded_text)
+
+        # Verificación
+        if text == decoded_text:
+            print(" Descompresión exitosa")
+        else:
+            print(" Descompresión fallida")
