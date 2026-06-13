@@ -1,0 +1,45 @@
+{
+    "compresion": [
+        {
+            "algoritmo": "LZ78",
+            "estructura": {
+                "diccionario": [
+                    {
+                        "indice": 1,
+                        "cadena": "A"
+                    },
+                    {
+                        "indice": 2,
+                        "cadena": "B"
+                    },
+                    {
+                        "indice": 3,
+                        "cadena": "AB"
+                    },
+                    {
+                        "indice": 4,
+                        "cadena": "ABA"
+                    }
+                ],
+                "salida": [
+                    {
+                        "indice": 0,
+                        "simbolo": "A"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "B"
+                    },
+                    {
+                        "indice": 1,
+                        "simbolo": "B"
+                    },
+                    {
+                        "indice": 3,
+                        "simbolo": "A"
+                    }
+                ]
+            }
+        }
+    ]
+}
