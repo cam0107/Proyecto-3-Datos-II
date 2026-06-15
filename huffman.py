@@ -59,8 +59,8 @@ def build_huffman_tree(text):
         parent = HuffmanNode(
             value=None, 
             frequency=freq1 + freq2, 
-            left=node1, 
-            right=node2
+            left=node2, 
+            right=node1
         )
         heapq.heappush(heap, (parent.frequency, counter, parent))
         counter += 1
