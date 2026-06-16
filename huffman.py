@@ -167,6 +167,39 @@ def generate_json_structure(root, codes):
     }
 
 
+def bitstring_to_bytes(bit_string):
+    """
+    Convierte una cadena de bits ("010101...") en un objeto bytes empaquetado.
+    El primer byte almacena el número de bits de relleno (padding) añadidos.
+    """
+    padding = (8 - (len(bit_string) % 8)) % 8
+    padded_bits = bit_string + ('0' * padding)
+    
+    byte_arr = bytearray()
+    byte_arr.append(padding)
+    for i in range(0, len(padded_bits), 8):
+        byte_val = int(padded_bits[i:i+8], 2)
+        byte_arr.append(byte_val)
+    return bytes(byte_arr)
+
+
+def bytes_to_bitstring(byte_data):
+    """
+    Convierte un objeto bytes empaquetado de Huffman de vuelta en una cadena de bits ("010101...").
+    Utiliza el primer byte para eliminar los bits de relleno correspondientes.
+    """
+    if not byte_data:
+        return ""
+    padding = byte_data[0]
+    bit_parts = []
+    for b in byte_data[1:]:
+        bit_parts.append(f"{b:08b}")
+    full_bits = "".join(bit_parts)
+    if padding > 0:
+        full_bits = full_bits[:-padding]
+    return full_bits
+
+
 if __name__ == "__main__":
     text = input("Ingrese el texto a comprimir: ")
     if text:

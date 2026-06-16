@@ -1,11 +1,11 @@
-from lz77 import LZ77
-from archivos import (
+from lz77 import (
+    LZ77,
     guardar,
     cargar,
     leer_texto,
-    guardar_texto
+    guardar_texto,
+    generar_json_lz77
 )
-from json_lz77 import generar_json_lz77
 import json
 
 lz = LZ77(
@@ -89,8 +89,8 @@ print(
 # PRUEBA DESDE JSON
 # ==========================
 
-from json_lz77 import leer_json_lz77
-from json_lz77 import obtener_tripletas
+from lz77 import leer_json_lz77
+from lz77 import obtener_tripletas
 
 datos_json = leer_json_lz77(
     "json/mensaje_lz77.json"

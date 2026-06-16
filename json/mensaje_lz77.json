@@ -1,177 +1,178 @@
 {
-    "compresion": {
-        "algoritmo": "LZ77",
-        "version": "1.0",
-        "estructura": {
-            "tamano_buffer_busqueda": 20,
-            "tamano_buffer_lectura": 10,
-            "tripletas": [
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "E"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "L"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": " "
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "G"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "A"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "T"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "O"
-                },
-                {
-                    "offset": 5,
-                    "longitud": 1,
-                    "siguiente": "C"
-                },
-                {
-                    "offset": 3,
-                    "longitud": 1,
-                    "siguiente": "M"
-                },
-                {
-                    "offset": 11,
-                    "longitud": 1,
-                    "siguiente": " "
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "P"
-                },
-                {
-                    "offset": 14,
-                    "longitud": 1,
-                    "siguiente": "S"
-                },
-                {
-                    "offset": 8,
-                    "longitud": 1,
-                    "siguiente": "A"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "D"
-                },
-                {
-                    "offset": 13,
-                    "longitud": 2,
-                    "siguiente": "Y"
-                },
-                {
-                    "offset": 20,
-                    "longitud": 1,
-                    "siguiente": "E"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "L"
-                },
-                {
-                    "offset": 13,
-                    "longitud": 3,
-                    "siguiente": "R"
-                },
-                {
-                    "offset": 1,
-                    "longitud": 1,
-                    "siguiente": "O"
-                },
-                {
-                    "offset": 19,
-                    "longitud": 1,
-                    "siguiente": "C"
-                },
-                {
-                    "offset": 14,
-                    "longitud": 1,
-                    "siguiente": "M"
-                },
-                {
-                    "offset": 12,
-                    "longitud": 1,
-                    "siguiente": " "
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "H"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "U"
-                },
-                {
-                    "offset": 16,
-                    "longitud": 1,
-                    "siguiente": "S"
-                },
-                {
-                    "offset": 11,
-                    "longitud": 2,
-                    "siguiente": "E"
-                },
-                {
-                    "offset": 20,
-                    "longitud": 2,
-                    "siguiente": "G"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "A"
-                },
-                {
-                    "offset": 0,
-                    "longitud": 0,
-                    "siguiente": "T"
-                },
-                {
-                    "offset": 19,
-                    "longitud": 7,
-                    "siguiente": "P"
-                },
-                {
-                    "offset": 18,
-                    "longitud": 2,
-                    "siguiente": "C"
-                },
-                {
-                    "offset": 13,
-                    "longitud": 1,
-                    "siguiente": "D"
-                },
-                {
-                    "offset": 13,
-                    "longitud": 1,
-                    "siguiente": ""
-                }
-            ]
+    "compresion": [
+        {
+            "algoritmo": "LZ77",
+            "estructura": {
+                "tamano_buffer_busqueda": 20,
+                "tamano_buffer_lectura": 10,
+                "tripletas": [
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "E"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "L"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": " "
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "G"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "A"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "T"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "O"
+                    },
+                    {
+                        "offset": 5,
+                        "longitud": 1,
+                        "siguiente": "C"
+                    },
+                    {
+                        "offset": 3,
+                        "longitud": 1,
+                        "siguiente": "M"
+                    },
+                    {
+                        "offset": 11,
+                        "longitud": 1,
+                        "siguiente": " "
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "P"
+                    },
+                    {
+                        "offset": 14,
+                        "longitud": 1,
+                        "siguiente": "S"
+                    },
+                    {
+                        "offset": 8,
+                        "longitud": 1,
+                        "siguiente": "A"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "D"
+                    },
+                    {
+                        "offset": 13,
+                        "longitud": 2,
+                        "siguiente": "Y"
+                    },
+                    {
+                        "offset": 20,
+                        "longitud": 1,
+                        "siguiente": "E"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "L"
+                    },
+                    {
+                        "offset": 13,
+                        "longitud": 3,
+                        "siguiente": "R"
+                    },
+                    {
+                        "offset": 1,
+                        "longitud": 1,
+                        "siguiente": "O"
+                    },
+                    {
+                        "offset": 19,
+                        "longitud": 1,
+                        "siguiente": "C"
+                    },
+                    {
+                        "offset": 14,
+                        "longitud": 1,
+                        "siguiente": "M"
+                    },
+                    {
+                        "offset": 12,
+                        "longitud": 1,
+                        "siguiente": " "
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "H"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "U"
+                    },
+                    {
+                        "offset": 16,
+                        "longitud": 1,
+                        "siguiente": "S"
+                    },
+                    {
+                        "offset": 11,
+                        "longitud": 2,
+                        "siguiente": "E"
+                    },
+                    {
+                        "offset": 20,
+                        "longitud": 2,
+                        "siguiente": "G"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "A"
+                    },
+                    {
+                        "offset": 0,
+                        "longitud": 0,
+                        "siguiente": "T"
+                    },
+                    {
+                        "offset": 19,
+                        "longitud": 7,
+                        "siguiente": "P"
+                    },
+                    {
+                        "offset": 18,
+                        "longitud": 2,
+                        "siguiente": "C"
+                    },
+                    {
+                        "offset": 13,
+                        "longitud": 1,
+                        "siguiente": "D"
+                    },
+                    {
+                        "offset": 13,
+                        "longitud": 1,
+                        "siguiente": ""
+                    }
+                ]
+            }
         }
-    }
+    ]
 }

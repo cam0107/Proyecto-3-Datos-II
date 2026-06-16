@@ -9,6 +9,205 @@ import LZW
 import LZ78
 
 
+def detectar_algoritmo_real(datos, datos_json=None):
+    """
+    detectar qué algoritmo corresponde a los datos (bytes o string).
+    Si datos_json está disponible, valida las firmas de los datos contra el JSON para evitar despistes.
+    """
+    try:
+        if isinstance(datos, bytes):
+            # Si contiene ceros y unos legibles en ASCII (Huffman en formato texto)
+            if all(b_val in (0x30, 0x31, 0x0a, 0x0d, 0x20) for b_val in datos):
+                text = datos.decode('utf-8', errors='ignore').strip()
+            else:
+                text = datos.decode('utf-8', errors='strict').strip()
+        else:
+            text = str(datos).strip()
+            
+        # 1. LZ77 check (parentesis y comas)
+        if text.startswith('(') or '(' in text:
+            if ',' in text and ')' in text:
+                return "LZ77"
+                
+        # 2. Huffman check (solo '0' y '1')
+        if text and all(c in ('0', '1') for c in text):
+            return "Huffman"
+            
+        # 3. LZW text check (enteros separados por espacio)
+        if text and all(w.isdigit() for w in text.split()):
+            return "LZW"
+    except Exception:
+        pass
+        
+    # 4. Binary check
+    if isinstance(datos, bytes):
+        length = len(datos)
+        if length > 0:
+            # Si tenemos datos_json, podemos validar con precisión del 100%
+            if datos_json:
+                compresiones = datos_json.get("compresion", [])
+                
+                # --- A. Verificar LZW ---
+                lzw_salida = None
+                for b in compresiones:
+                    if b.get("algoritmo") == "LZW":
+                        lzw_salida = b.get("estructura", {}).get("salida")
+                        break
+                if lzw_salida:
+                    # Desempaquetar LZW (16-bit)
+                    import struct
+                    unpacked_lzw = []
+                    for i in range(0, length, 2):
+                        if i+2 <= length:
+                            unpacked_lzw.append(struct.unpack('H', datos[i:i+2])[0])
+                    if unpacked_lzw == lzw_salida:
+                        return "LZW"
+                
+                # --- B. Verificar LZ78 ---
+                lz78_salida = None
+                for b in compresiones:
+                    if b.get("algoritmo") == "LZ78":
+                        lz78_salida = b.get("estructura", {}).get("salida")
+                        break
+                if lz78_salida:
+                    # Desempaquetar LZ78 (3 bytes: Hc)
+                    import struct
+                    unpacked_lz78 = []
+                    for i in range(0, length, 3):
+                        if i+3 <= length:
+                            idx, sym_byte = struct.unpack('>Hc', datos[i:i+3])
+                            sym = "" if sym_byte == b'\x00' else sym_byte.decode('utf-8', errors='ignore')
+                            unpacked_lz78.append({"indice": idx, "simbolo": sym})
+                    if unpacked_lz78 == lz78_salida:
+                        return "LZ78"
+                
+                # --- C. Verificar Huffman ---
+                huffman_active = False
+                for b in compresiones:
+                    if b.get("algoritmo") == "Huffman":
+                        huffman_active = "arbol" in b.get("estructura", {})
+                        break
+                if huffman_active:
+                    return "Huffman"
+            
+            # Fallback si datos_json es None o no dio coincidencia exacta
+            is_lz78_possible = (length % 3 == 0)
+            is_lzw_possible = (length % 2 == 0)
+            
+            if is_lz78_possible and not is_lzw_possible:
+                return "LZ78"
+            if is_lzw_possible and not is_lz78_possible:
+                return "LZW"
+            if is_lz78_possible and is_lzw_possible:
+                import struct
+                codes = []
+                for i in range(0, length, 2):
+                    if i+2 <= length:
+                        codes.append(struct.unpack('H', datos[i:i+2])[0])
+                
+                max_valid_code = 256 + len(codes)
+                lzw_valid = True
+                for c in codes:
+                    if c >= max_valid_code:
+                        lzw_valid = False
+                        break
+                if lzw_valid:
+                    return "LZW"
+                else:
+                    return "LZ78"
+            return "LZW" # Default fallback
+            
+    return None
+
+
+def generar_json_final_competicion(texto_original, pistas_reales=None):
+    """
+    Genera un JSON completo.
+    Si un algoritmo está en pistas_reales, usa esa estructura real (que puede provenir de una capa intermedia).
+    Para los algoritmos que no están en pistas_reales, genera su estructura en memoria a partir del texto_original.
+    """
+    if pistas_reales is None:
+        pistas_reales = {}
+        
+    import huffman
+    import lz77
+    import LZ78
+    import LZW
+
+    # 1. Huffman
+    if "Huffman" in pistas_reales:
+        est_huffman = pistas_reales["Huffman"]
+    else:
+        try:
+            root = huffman.build_huffman_tree(texto_original)
+            codes = huffman.generate_codes(root)
+            est_huffman = huffman.generate_json_structure(root, codes)["compresion"][0]["estructura"]
+        except Exception:
+            est_huffman = {}
+
+    # 2. LZ77
+    if "LZ77" in pistas_reales:
+        est_lz77 = pistas_reales["LZ77"]
+    else:
+        try:
+            lz_obj = lz77.LZ77(ventana=20)
+            tripletas = lz_obj.comprimir(texto_original)
+            est_lz77 = {
+                "tamano_buffer_busqueda": 20,
+                "tamano_buffer_lectura": 10,
+                "tripletas": []
+            }
+            for offset, longitud, siguiente in tripletas:
+                est_lz77["tripletas"].append({
+                    "offset": offset,
+                    "longitud": longitud,
+                    "siguiente": siguiente
+                })
+        except Exception:
+            est_lz77 = {}
+
+    # 3. LZ78
+    if "LZ78" in pistas_reales:
+        est_lz78 = pistas_reales["LZ78"]
+    else:
+        try:
+            _, est_lz78_wrapper = LZ78.comprimir_lz78(texto_original)
+            est_lz78 = est_lz78_wrapper["estructura"]
+        except Exception:
+            est_lz78 = {}
+
+    # 4. LZW
+    if "LZW" in pistas_reales:
+        est_lzw = pistas_reales["LZW"]
+    else:
+        try:
+            codigos, diccionario_final = LZW.lzw_compress(texto_original)
+            diccionario_inicial = {chr(i): i for i in range(256)}
+            diccionario_generado_lista = []
+            for cadena, codigo in diccionario_final.items():
+                if codigo >= 256:
+                    diccionario_generado_lista.append({
+                        "codigo": codigo,
+                        "cadena": cadena
+                    })
+            est_lzw = {
+                "diccionario_inicial": diccionario_inicial,
+                "diccionario_generado": diccionario_generado_lista,
+                "salida": codigos
+            }
+        except Exception:
+            est_lzw = {}
+
+    return {
+        "compresion": [
+            { "algoritmo": "Huffman", "estructura": est_huffman },
+            { "algoritmo": "LZ77", "estructura": est_lz77 },
+            { "algoritmo": "LZ78", "estructura": est_lz78 },
+            { "algoritmo": "LZW", "estructura": est_lzw }
+        ]
+    }
+
+
 class InterfazTorneoAutomatica:
     def __init__(self, root):
         self.root = root
@@ -64,10 +263,17 @@ class InterfazTorneoAutomatica:
             entry_widget.insert(0, ruta)
 
     def obtener_rutas_automaticas_compresion(self, ruta_origen, sufijo_algoritmo):
-        directorio = os.path.dirname(ruta_origen)
+        proyecto_dir = os.path.dirname(os.path.abspath(__file__))
         nombre_base, _ = os.path.splitext(os.path.basename(ruta_origen))
-        ruta_bin = os.path.join(directorio, f"{nombre_base}_{sufijo_algoritmo}.bin")
-        ruta_json = os.path.join(directorio, f"{nombre_base}_{sufijo_algoritmo}_pistas.json")
+        
+        dir_bin = os.path.join(proyecto_dir, "comprimidos")
+        dir_json = os.path.join(proyecto_dir, "json")
+        
+        os.makedirs(dir_bin, exist_ok=True)
+        os.makedirs(dir_json, exist_ok=True)
+        
+        ruta_bin = os.path.join(dir_bin, f"{nombre_base}_{sufijo_algoritmo}.bin")
+        ruta_json = os.path.join(dir_json, f"{nombre_base}_{sufijo_algoritmo}.json")
         return ruta_bin, ruta_json
 
 
@@ -127,9 +333,11 @@ class InterfazTorneoAutomatica:
 
         self.log_general("[Inicio] Analizando topología de las pistas...")
 
-        directorio = os.path.dirname(orig_bin)
+        proyecto_dir = os.path.dirname(os.path.abspath(__file__))
+        dir_salidas = os.path.join(proyecto_dir, "salidas")
+        os.makedirs(dir_salidas, exist_ok=True)
         nombre_base = os.path.splitext(os.path.basename(orig_bin))[0]
-        ruta_txt_out = os.path.join(directorio, f"{nombre_base}_RESTAURADO.txt")
+        ruta_txt_out = os.path.join(dir_salidas, f"{nombre_base}_restaurado.txt")
 
         try:
             with open(orig_json, 'r', encoding='utf-8') as f:
@@ -137,58 +345,55 @@ class InterfazTorneoAutomatica:
             
             compresiones = datos_json.get("compresion", [])
             
-            capas_reales = []
-            for bloque in compresiones:
-                algoritmo = bloque.get("algoritmo")
-                estructura = bloque.get("estructura", {})
-                
-                if algoritmo == "Huffman" and estructura.get("arbol") is not None:
-                    capas_reales.append(bloque)
-                elif algoritmo == "LZ77" and len(estructura.get("tripletas", [])) > 0:
-                    capas_reales.append(bloque)
-                elif (algoritmo in ["LZ78", "LZ8"]) and (len(estructura.get("diccionario", [])) > 0 or estructura.get("nodos") is not None or "salida" in estructura):
-                    capas_reales.append(bloque)
-                elif algoritmo == "LZW" and ("salida" in estructura or len(estructura.get("salida", [])) > 0):
-                    capas_reales.append(bloque)
-
-            if not capas_reales:
-                raise ValueError("El JSON no contiene estructuras o capas de algoritmos válidas.")
-
-            self.log_general(f"[Info] Se detectaron {len(capas_reales)} capa(s) válida(s) en las pistas.")
-
             # --- LEER LA ENVOLTURA MÁS EXTERNA ---
             with open(orig_bin, 'rb') as f_b:
                 datos_actuales = f_b.read()
 
-            # Descomprimir capa por capa de afuera hacia adentro
-            for idx, capa in enumerate(capas_reales):
-                algoritmo = capa.get("algoritmo")
-                estructura = capa.get("estructura", {})
-                self.log_general(f"[Capa {idx+1}/{len(capas_reales)}] Removiendo algoritmo: {algoritmo}")
+            pasos_realizados = 0
+            max_pasos = 2 # Se permite un máximo de 2 algoritmos de compresión en cascada según las reglas
 
-                # --- CONTROL DE TRANSICIÓN INTEGRAL (DE-SERIALIZACIÓN) ---
-                if isinstance(datos_actuales, bytes) and idx > 0:
-                    try:
-                        texto_str = datos_actuales.decode('utf-8', errors='ignore').strip()
-                        # Si la capa intermedia fue codificada en hexadecimal seguro, la revertimos a bytes
-                        if all(c in '0123456789abcdefABCDEF' for c in texto_str) and len(texto_str) % 2 == 0:
-                            if algoritmo != "Huffman":
-                                datos_actuales = bytes.fromhex(texto_str)
-                    except Exception:
-                        pass
+            while pasos_realizados < max_pasos:
+                algoritmo = detectar_algoritmo_real(datos_actuales, datos_json)
+                if not algoritmo:
+                    break
+                
+                # Buscar el bloque de estructura correspondiente en el JSON
+                bloque_capa = None
+                for bloque in compresiones:
+                    if bloque.get("algoritmo") == algoritmo:
+                        bloque_capa = bloque
+                        break
+                
+                if not bloque_capa:
+                    break
+                
+                estructura = bloque_capa.get("estructura", {})
+                # Si la estructura del algoritmo está vacía en el JSON, significa que era de despiste
+                if algoritmo == "Huffman" and "arbol" not in estructura:
+                    break
+                elif algoritmo == "LZ77" and "tripletas" not in estructura:
+                    break
+                elif algoritmo == "LZ78" and "diccionario" not in estructura and "salida" not in estructura:
+                    break
+                elif algoritmo == "LZW" and "salida" not in estructura:
+                    break
+
+                self.log_general(f"[Capa {pasos_realizados+1}] Removiendo algoritmo: {algoritmo}")
 
                 texto_descomprimido = ""
 
                 # --- PROCESAMIENTO POR ALGORITMO ---
                 if algoritmo == "Huffman":
                     if isinstance(datos_actuales, bytes):
-                        bit_string = datos_actuales.decode('utf-8', errors='ignore').strip()
+                        # Detectar si es ASCII legible de ceros y unos
+                        if all(b_val in (0x30, 0x31, 0x0a, 0x0d, 0x20) for b_val in datos_actuales):
+                            bit_string = datos_actuales.decode('utf-8', errors='ignore').strip()
+                        else:
+                            bit_string = huffman.bytes_to_bitstring(datos_actuales)
                     else:
                         bit_string = str(datos_actuales).strip()
                     
-                    # Filtro absoluto para eliminar impurezas tipográficas residuales
                     bit_string = "".join([c for c in bit_string if c in ('0', '1')])
-                    
                     root_node = huffman.deserialize_tree(estructura.get("arbol"))
                     texto_descomprimido = huffman.decode_bits(bit_string, root_node)
 
@@ -199,14 +404,14 @@ class InterfazTorneoAutomatica:
                             string_codigos = datos_actuales.decode('utf-8').strip()
                             codigos_lzw = list(map(int, string_codigos.split()))
                         except Exception:
+                            import struct
                             codigos_lzw = []
                             for i in range(0, len(datos_actuales), 2):
                                 if i+2 <= len(datos_actuales):
-                                    codigos_lzw.append(int.from_bytes(datos_actuales[i:i+2], byteorder='big'))
+                                    codigos_lzw.append(struct.unpack('H', datos_actuales[i:i+2])[0])
                     else:
                         codigos_lzw = list(map(int, str(datos_actuales).strip().split()))
 
-                    # Fallback defensivo: extraer códigos directamente del JSON de pistas si falló el parseo
                     if not codigos_lzw and "salida" in estructura:
                         codigos_lzw = estructura.get("salida", [])
 
@@ -223,7 +428,7 @@ class InterfazTorneoAutomatica:
                         
                     r_t_bin, r_t_json, r_t_txt = "t_gen_lz77.bin", "t_gen_lz77.json", "t_gen_lz77.txt"
                     with open(r_t_bin, 'wb') as f_t: f_t.write(datos_actuales)
-                    with open(r_t_json, 'w', encoding='utf-8') as f_j: json.dump({"compresion": [capa]}, f_j)
+                    with open(r_t_json, 'w', encoding='utf-8') as f_j: json.dump({"compresion": [bloque_capa]}, f_j)
                     
                     gestor_lz77.descomprimir_archivo(r_t_bin, r_t_json, r_t_txt)
                     with open(r_t_txt, 'r', encoding='utf-8') as f_r: texto_descomprimido = f_r.read()
@@ -232,17 +437,24 @@ class InterfazTorneoAutomatica:
                         if os.path.exists(f_del): os.remove(f_del)
 
                 # --- CONTROL DE SALIDA DE CAPA ---
-                if idx < len(capas_reales) - 1:
-                    try:
-                        # Si el texto es una representación hexadecimal intermedia, lo pasamos como bytes nativos
-                        if all(c in '0123456789abcdefABCDEF' for c in texto_descomprimido) and len(texto_descomprimido) % 2 == 0:
-                            datos_actuales = bytes.fromhex(texto_descomprimido)
-                        else:
-                            datos_actuales = texto_descomprimido.encode('utf-8')
-                    except Exception:
-                        datos_actuales = texto_descomprimido.encode('utf-8')
-                else:
+                next_algo = detectar_algoritmo_real(texto_descomprimido, datos_json)
+                if next_algo == "Huffman" or next_algo == "LZ77":
                     datos_actuales = texto_descomprimido.encode('utf-8')
+                else:
+                    if all(c in '0123456789abcdefABCDEF' for c in texto_descomprimido) and len(texto_descomprimido) % 2 == 0:
+                        try:
+                            temp_bytes = bytes.fromhex(texto_descomprimido)
+                            next_algo_decoded = detectar_algoritmo_real(temp_bytes, datos_json)
+                            if next_algo_decoded in ["LZW", "LZ78", "LZ77"]:
+                                datos_actuales = temp_bytes
+                            else:
+                                datos_actuales = texto_descomprimido.encode('utf-8')
+                        except Exception:
+                            datos_actuales = texto_descomprimido.encode('utf-8')
+                    else:
+                        datos_actuales = texto_descomprimido.encode('utf-8')
+
+                pasos_realizados += 1
 
             # --- ESCRITURA FINAL DE RESULTADOS ---
             with open(ruta_txt_out, 'w', encoding='utf-8') as f_out:
@@ -253,8 +465,8 @@ class InterfazTorneoAutomatica:
             messagebox.showinfo("¡Éxito Total!", f"Proceso Completado.\nGuardado como: {os.path.basename(ruta_txt_out)}")
 
         except Exception as e:
-            self.log_general(f"[Fallo] Error en la cadena de descompresión: {e}")
-            messagebox.showerror("Error de Pipeline", f"No se pudo restaurar el archivo:\n{e}")
+            self.log_general(f"[Error] Falló la restauración:\n{e}")
+            messagebox.showerror("Error General", f"No se pudo completar el proceso de descompresión:\n{e}")
 
 
     # =========================================================================
@@ -360,7 +572,8 @@ class InterfazTorneoAutomatica:
                 root = huffman.build_huffman_tree(string_puente_intermedio)
                 codes = huffman.generate_codes(root)
                 bits_finales = huffman.encode_text(string_puente_intermedio, codes)
-                with open(r_bin, 'w', encoding='utf-8') as f_out: f_out.write(bits_finales)
+                bytes_finales = huffman.bitstring_to_bytes(bits_finales)
+                with open(r_bin, 'wb') as f_out: f_out.write(bytes_finales)
                 pistas_capa_2 = huffman.generate_json_structure(root, codes)["compresion"][0]
             elif algo2 == "LZ78":
                 bytes_res, estructura = LZ78.comprimir_lz78(string_puente_intermedio)
@@ -374,13 +587,17 @@ class InterfazTorneoAutomatica:
 
             if os.path.exists("temp_puente.txt"): os.remove("temp_puente.txt")
 
-            # Estructurar JSON Final (Manteniendo el orden inverso para el descompresor)
-            json_final = {
-                "compresion": [
-                    pistas_capa_2,  
-                    pistas_capa_1   
-                ]
+            # Estructurar JSON Final con todas las estructuras (torneo con despiste)
+            pistas_reales = {
+                algo1: pistas_capa_1.get("estructura") if (isinstance(pistas_capa_1, dict) and "estructura" in pistas_capa_1) else (pistas_capa_1.get("compresion", [{}])[0].get("estructura") if (isinstance(pistas_capa_1, dict) and "compresion" in pistas_capa_1) else pistas_capa_1),
+                algo2: pistas_capa_2.get("estructura") if (isinstance(pistas_capa_2, dict) and "estructura" in pistas_capa_2) else (pistas_capa_2.get("compresion", [{}])[0].get("estructura") if (isinstance(pistas_capa_2, dict) and "compresion" in pistas_capa_2) else pistas_capa_2)
             }
+            # Limpiar envolturas externas redundantes
+            for a in [algo1, algo2]:
+                if isinstance(pistas_reales.get(a), dict) and "estructura" in pistas_reales[a]:
+                    pistas_reales[a] = pistas_reales[a]["estructura"]
+
+            json_final = generar_json_final_competicion(texto_original, pistas_reales)
 
             with open(r_json, 'w', encoding='utf-8') as f_j:
                 json.dump(json_final, f_j, indent=4, ensure_ascii=False)
@@ -418,7 +635,29 @@ class InterfazTorneoAutomatica:
         if not orig: return
         try:
             r_bin, r_json = self.obtener_rutas_automaticas_compresion(orig, "LZ77")
-            gestor_lz77.comprimir_archivo(orig, r_bin, r_json)
+            with open(orig, 'r', encoding='utf-8') as f: texto = f.read()
+            import lz77
+            lz = lz77.LZ77(ventana=20)
+            comprimido = lz.comprimir(texto)
+            lz77.guardar(r_bin, comprimido)
+            
+            # Generar JSON unificado
+            est_lz77 = {
+                "tamano_buffer_busqueda": 20,
+                "tamano_buffer_lectura": 10,
+                "tripletas": []
+            }
+            for offset, longitud, siguiente in comprimido:
+                est_lz77["tripletas"].append({
+                    "offset": offset,
+                    "longitud": longitud,
+                    "siguiente": siguiente
+                })
+            json_final = generar_json_final_competicion(texto, {"LZ77": est_lz77})
+            
+            with open(r_json, 'w', encoding='utf-8') as f_json:
+                json.dump(json_final, f_json, indent=4, ensure_ascii=False)
+                
             messagebox.showinfo("Éxito", "LZ77 Completado.")
         except Exception as e: messagebox.showerror("Error", str(e))
 
@@ -426,8 +665,23 @@ class InterfazTorneoAutomatica:
         b, j = self.ent_lz77_bin_d.get(), self.ent_lz77_json_d.get()
         if not b or not j: return
         try:
-            r_out = os.path.splitext(b)[0] + "_restaurado.txt"
-            gestor_lz77.descomprimir_archivo(b, j, r_out)
+            proyecto_dir = os.path.dirname(os.path.abspath(__file__))
+            dir_salidas = os.path.join(proyecto_dir, "salidas")
+            os.makedirs(dir_salidas, exist_ok=True)
+            r_out = os.path.join(dir_salidas, os.path.splitext(os.path.basename(b))[0] + "_restaurado.txt")
+            
+            import lz77
+            lz = lz77.LZ77()
+            with open(j, 'r', encoding='utf-8') as f:
+                datos_json = json.load(f)
+            
+            from lz77 import obtener_tripletas
+            tripletas = obtener_tripletas(datos_json)
+            texto = lz.descomprimir(tripletas)
+            
+            with open(r_out, 'w', encoding='utf-8') as f_out:
+                f_out.write(texto)
+                
             messagebox.showinfo("Éxito", "Restaurado con éxito.")
         except Exception as e: messagebox.showerror("Error", str(e))
 
@@ -454,7 +708,12 @@ class InterfazTorneoAutomatica:
             with open(orig, 'r', encoding='utf-8') as f: texto = f.read()
             bytes_comp, estructura_pistas = LZ78.comprimir_lz78(texto)
             with open(r_bin, 'wb') as f_bin: f_bin.write(bytes_comp)
-            with open(r_json, 'w', encoding='utf-8') as f_json: json.dump({"compresion": [estructura_pistas]}, f_json, indent=4)
+            
+            # Generar JSON unificado
+            json_final = generar_json_final_competicion(texto, {"LZ78": estructura_pistas["estructura"]})
+            with open(r_json, 'w', encoding='utf-8') as f_json:
+                json.dump(json_final, f_json, indent=4, ensure_ascii=False)
+                
             messagebox.showinfo("Éxito", "LZ78 Completado.")
         except Exception as e: messagebox.showerror("Error", str(e))
 
@@ -462,7 +721,11 @@ class InterfazTorneoAutomatica:
         b = self.ent_lz78_bin_d.get()
         if not b: return
         try:
-            r_out = os.path.splitext(b)[0] + "_restaurado.txt"
+            proyecto_dir = os.path.dirname(os.path.abspath(__file__))
+            dir_salidas = os.path.join(proyecto_dir, "salidas")
+            os.makedirs(dir_salidas, exist_ok=True)
+            r_out = os.path.join(dir_salidas, os.path.splitext(os.path.basename(b))[0] + "_restaurado.txt")
+            
             with open(b, 'rb') as f_bin: bytes_leidos = f_bin.read()
             texto_recuperado = LZ78.descomprimir_lz78(bytes_leidos)
             with open(r_out, 'w', encoding='utf-8') as f_out: f_out.write(texto_recuperado)
@@ -492,7 +755,25 @@ class InterfazTorneoAutomatica:
             with open(orig, 'r', encoding='utf-8') as f: texto = f.read()
             codigos, diccionario_final = LZW.lzw_compress(texto)
             LZW.guardar_archivo_binario(codigos, r_bin)
-            LZW.generar_archivo_pistas_json(texto, codigos, diccionario_final, r_json)
+            
+            # Generar JSON unificado
+            diccionario_inicial = {chr(i): i for i in range(256)}
+            diccionario_generado_lista = []
+            for cadena, codigo in diccionario_final.items():
+                if codigo >= 256:
+                    diccionario_generado_lista.append({
+                        "codigo": codigo,
+                        "cadena": cadena
+                    })
+            est_lzw = {
+                "diccionario_inicial": diccionario_inicial,
+                "diccionario_generado": diccionario_generado_lista,
+                "salida": codigos
+            }
+            json_final = generar_json_final_competicion(texto, {"LZW": est_lzw})
+            with open(r_json, 'w', encoding='utf-8') as f_json:
+                json.dump(json_final, f_json, indent=4, ensure_ascii=False)
+                
             messagebox.showinfo("Éxito", "LZW Completado.")
         except Exception as e: messagebox.showerror("Error", str(e))
 
@@ -500,7 +781,11 @@ class InterfazTorneoAutomatica:
         b = self.ent_lzw_bin_d.get()
         if not b: return
         try:
-            r_out = os.path.splitext(b)[0] + "_restaurado.txt"
+            proyecto_dir = os.path.dirname(os.path.abspath(__file__))
+            dir_salidas = os.path.join(proyecto_dir, "salidas")
+            os.makedirs(dir_salidas, exist_ok=True)
+            r_out = os.path.join(dir_salidas, os.path.splitext(os.path.basename(b))[0] + "_restaurado.txt")
+            
             codigos_extraidos = LZW.leer_archivo_binario(b)
             texto_restaurado = LZW.lzw_decompress(codigos_extraidos)
             with open(r_out, "w", encoding="utf-8") as f: f.write(texto_restaurado)
@@ -534,9 +819,15 @@ class InterfazTorneoAutomatica:
             root_node = huffman.build_huffman_tree(texto)
             codes = huffman.generate_codes(root_node)
             encoded_text = huffman.encode_text(texto, codes)
-            with open(r_bin, 'w', encoding='utf-8') as f_bin: f_bin.write(encoded_text)
-            pistas = huffman.generate_json_structure(root_node, codes)
-            with open(r_json, 'w', encoding='utf-8') as f_json: json.dump(pistas, f_json, indent=4)
+            bytes_finales = huffman.bitstring_to_bytes(encoded_text)
+            with open(r_bin, 'wb') as f_bin: f_bin.write(bytes_finales)
+            
+            # Generar JSON unificado
+            est_huffman = huffman.generate_json_structure(root_node, codes)["compresion"][0]["estructura"]
+            json_final = generar_json_final_competicion(texto, {"Huffman": est_huffman})
+            with open(r_json, 'w', encoding='utf-8') as f_json:
+                json.dump(json_final, f_json, indent=4, ensure_ascii=False)
+                
             messagebox.showinfo("Éxito", "Huffman Completado.")
         except Exception as e: messagebox.showerror("Error", str(e))
 
@@ -544,10 +835,29 @@ class InterfazTorneoAutomatica:
         b, j = self.ent_huff_bin_d.get(), self.ent_huff_json_d.get()
         if not b or not j: return
         try:
-            r_out = os.path.splitext(b)[0] + "_restaurado.txt"
-            with open(b, 'r', encoding='utf-8') as f_bin: bit_string = f_bin.read()
+            proyecto_dir = os.path.dirname(os.path.abspath(__file__))
+            dir_salidas = os.path.join(proyecto_dir, "salidas")
+            os.makedirs(dir_salidas, exist_ok=True)
+            r_out = os.path.join(dir_salidas, os.path.splitext(os.path.basename(b))[0] + "_restaurado.txt")
+            
+            with open(b, 'rb') as f_bin: bytes_data = f_bin.read()
+            # Si el archivo tiene la Forma 2 (es ASCII legible de ceros y unos)
+            if all(b_val in (0x30, 0x31, 0x0a, 0x0d, 0x20) for b_val in bytes_data):
+                bit_string = bytes_data.decode('utf-8', errors='ignore').strip()
+            else:
+                bit_string = huffman.bytes_to_bitstring(bytes_data)
+                
             with open(j, 'r', encoding='utf-8') as f_json: datos_json = json.load(f_json)
-            estructura_arbol = datos_json["compresion"][0]["estructura"]["arbol"]
+            
+            estructura_arbol = None
+            for bloque in datos_json.get("compresion", []):
+                if bloque.get("algoritmo") == "Huffman":
+                    estructura_arbol = bloque["estructura"]["arbol"]
+                    break
+            
+            if not estructura_arbol:
+                raise ValueError("No se encontró estructura de Huffman en el JSON.")
+                
             root_node = huffman.deserialize_tree(estructura_arbol)
             texto_recuperado = huffman.decode_bits(bit_string, root_node)
             with open(r_out, 'w', encoding='utf-8') as f_out: f_out.write(texto_recuperado)

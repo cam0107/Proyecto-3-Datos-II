@@ -1,12 +1,9 @@
-from lz77 import LZ77
-from archivos import (
+from lz77 import (
+    LZ77,
     leer_texto,
     guardar_texto,
     guardar,
-    cargar
-)
-
-from json_lz77 import (
+    cargar,
     generar_json_lz77,
     leer_json_lz77,
     obtener_tripletas
