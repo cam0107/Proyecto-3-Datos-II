@@ -9,6 +9,12 @@ def comprimir_lz78(texto_original):
       1. bytes_comprimidos: Los datos empaquetados en formato binario.
       2. estructura_json: El diccionario con las pistas para el reto.
     """
+    #validar que el texto no contenga caracteres fuera de ascii simple
+    try:
+        texto_original.encode('ascii')
+    except UnicodeEncodeError:
+        raise ValueError("Error: El texto contiene caracteres especiales") 
+    
     diccionario_interno = {} # Diccionario para crear la cadena de índices
     diccionario_json = [] # Lista para el JSON de pistas
     salida_json = [] # Lista para la salida de pistas (índice + símbolo)
@@ -34,7 +40,7 @@ def comprimir_lz78(texto_original):
             diccionario_json.append({"indice": indice_actual, "cadena": nueva_cadena})
             diccionario_interno[nueva_cadena] = indice_actual
             
-            datos_binarios.extend(struct.pack('>Hc', indice_salida, char.encode('latin-1'))) # Empaquetamos el índice y el carácter en formato binario (2 bytes para el índice, 1 byte para el carácter)
+            datos_binarios.extend(struct.pack('>Hc', indice_salida, char.encode('ascii'))) # Empaquetamos el índice y el carácter en formato binario (2 bytes para el índice, 1 byte para el carácter)
             
             indice_actual += 1
             cadena_actual = ""
@@ -75,7 +81,7 @@ def descomprimir_lz78(datos_binarios):
         indice_padre, char_byte = struct.unpack('>Hc', bloque)
         
         # Si el carácter es el byte nulo, lo interpretamos como una cadena vacía
-        simbolo = "" if char_byte == b'\x00' else char_byte.decode('latin-1')
+        simbolo = "" if char_byte == b'\x00' else char_byte.decode('ascii')
         
         prefijo = diccionario_reconstruccion[indice_padre] 
         nueva_cadena = prefijo + simbolo
