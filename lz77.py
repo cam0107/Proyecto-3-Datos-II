@@ -1,4 +1,5 @@
 import json
+import struct
 
 class LZ77:
 
@@ -114,7 +115,7 @@ def generar_json_lz77(
     for offset, longitud, siguiente in tripletas:
         datos["compresion"][0]["estructura"]["tripletas"].append(
             {
-                "offset": offset,
+                "offset": "_" if offset == 0 else offset,
                 "longitud": longitud,
                 "siguiente": siguiente
             }
@@ -140,13 +141,11 @@ def leer_json_lz77(ruta):
 def obtener_tripletas(datos_json):
     """
     Extrae las tripletas de LZ77 buscando en la lista de compresiones.
-    Soporta formato de lista (nuevo) y objeto (antiguo) para evitar crasheos.
     """
     tripletas = []
     
     compresiones = datos_json.get("compresion", [])
     
-    # Manejo robusto de retrocompatibilidad
     if isinstance(compresiones, dict):
         compresiones = [compresiones]
         
@@ -154,10 +153,12 @@ def obtener_tripletas(datos_json):
         if isinstance(bloque, dict) and bloque.get("algoritmo") == "LZ77":
             estructura = bloque.get("estructura", {})
             for t in estructura.get("tripletas", []):
+                offset_val = t["offset"]
+                offset = 0 if offset_val == "_" or offset_val == 0 or not offset_val else int(offset_val)
                 tripletas.append(
                     (
-                        t["offset"],
-                        t["longitud"],
+                        offset,
+                        int(t["longitud"]),
                         t["siguiente"]
                     )
                 )
@@ -167,38 +168,58 @@ def obtener_tripletas(datos_json):
 
 
 def guardar(nombre, datos):
-    with open(nombre, "w", encoding="utf-8") as archivo:
+    with open(nombre, "wb") as archivo:
         for distancia, longitud, caracter in datos:
-            archivo.write(f"({distancia},{longitud},{caracter})")
+            caracter_val = ord(caracter) if caracter else 0
+            archivo.write(struct.pack('>HHI', distancia, longitud, caracter_val))
 
 
 def cargar(nombre):
     datos = []
-    with open(nombre, "r", encoding="utf-8") as archivo:
-        contenido = archivo.read().strip()
-    
-    i = 0
-    while i < len(contenido):
-        if contenido[i] == '(':
-            first_comma = contenido.find(',', i)
-            if first_comma == -1:
-                break
-            second_comma = contenido.find(',', first_comma + 1)
-            if second_comma == -1:
-                break
-            close_paren = contenido.find(')', second_comma + 1)
-            if close_paren == -1:
-                break
+    with open(nombre, "rb") as archivo:
+        bytes_data = archivo.read()
+        
+    if not bytes_data:
+        return datos
+        
+    # Si detecta que es formato de texto ASCII (comienza con '(' que es 0x28)
+    if bytes_data[0] == 0x28:
+        contenido = bytes_data.decode('utf-8', errors='ignore').strip()
+        i = 0
+        while i < len(contenido):
+            if contenido[i] == '(':
+                first_comma = contenido.find(',', i)
+                if first_comma == -1:
+                    break
+                second_comma = contenido.find(',', first_comma + 1)
+                if second_comma == -1:
+                    break
+                close_paren = contenido.find(')', second_comma + 1)
+                if close_paren == -1:
+                    break
+                    
+                dist_str = contenido[i+1:first_comma].strip()
+                distancia = 0 if dist_str == '_' or not dist_str else int(dist_str)
                 
-            distancia = int(contenido[i+1:first_comma])
-            longitud = int(contenido[first_comma+1:second_comma])
-            caracter = contenido[second_comma+1:close_paren]
-            
+                len_str = contenido[first_comma+1:second_comma].strip()
+                longitud = 0 if len_str == '_' or not len_str else int(len_str)
+                
+                caracter = contenido[second_comma+1:close_paren]
+                
+                datos.append((distancia, longitud, caracter))
+                i = close_paren + 1
+            else:
+                i += 1
+    else:
+        # Formato binario puro de bloques de 8 bytes (HHI)
+        for i in range(0, len(bytes_data), 8):
+            bloque = bytes_data[i:i+8]
+            if len(bloque) < 8:
+                break
+            distancia, longitud, caracter_val = struct.unpack('>HHI', bloque)
+            caracter = chr(caracter_val) if caracter_val > 0 else ""
             datos.append((distancia, longitud, caracter))
-            i = close_paren + 1
-        else:
-            i += 1
-
+            
     return datos
 
 

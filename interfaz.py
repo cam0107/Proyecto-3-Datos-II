@@ -56,6 +56,26 @@ def detectar_algoritmo_real(datos, datos_json=None):
                 if unpacked_lz78 == lz78_salida:
                     return "LZ78"
 
+        lz77_salida = None
+        for b in compresiones:
+            if b.get("algoritmo") == "LZ77":
+                lz77_salida = b.get("estructura", {}).get("tripletas")
+                break
+        if lz77_salida:
+            import struct
+            if len(datos) % 8 == 0:
+                unpacked_lz77 = []
+                for i in range(0, len(datos), 8):
+                    dist, length_val, cp = struct.unpack('>HHI', datos[i:i+8])
+                    char = chr(cp) if cp > 0 else ""
+                    unpacked_lz77.append((dist, length_val, char))
+                normalized_salida = []
+                for t in lz77_salida:
+                    off = 0 if t["offset"] == "_" or t["offset"] == "" else int(t["offset"])
+                    normalized_salida.append((off, int(t["longitud"]), t["siguiente"]))
+                if unpacked_lz77 == normalized_salida:
+                    return "LZ77"
+
     try:
         if isinstance(datos, bytes):
             # Si contiene ceros y unos legibles en ASCII (Huffman en formato texto)
@@ -140,6 +160,27 @@ def detectar_algoritmo_real(datos, datos_json=None):
                     except Exception:
                         pass
 
+                # --- D. Verificar LZ77 ---
+                lz77_salida = None
+                for b in compresiones:
+                    if b.get("algoritmo") == "LZ77":
+                        lz77_salida = b.get("estructura", {}).get("tripletas")
+                        break
+                if lz77_salida:
+                    import struct
+                    if length % 8 == 0:
+                        unpacked_lz77 = []
+                        for i in range(0, length, 8):
+                            dist, length_val, cp = struct.unpack('>HHI', datos[i:i+8])
+                            char = chr(cp) if cp > 0 else ""
+                            unpacked_lz77.append((dist, length_val, char))
+                        normalized_salida = []
+                        for t in lz77_salida:
+                            off = 0 if t["offset"] == "_" or t["offset"] == "" else int(t["offset"])
+                            normalized_salida.append((off, int(t["longitud"]), t["siguiente"]))
+                        if unpacked_lz77 == normalized_salida:
+                            return "LZ77"
+
             # Si hay JSON disponible y no hubo coincidencia exacta, no adivinamos
             # por longitud: eso puede confundir texto plano con una capa comprimida.
             if datos_json:
@@ -214,7 +255,7 @@ def generar_json_final_competicion(texto_original, pistas_reales=None):
             }
             for offset, longitud, siguiente in tripletas:
                 est_lz77["tripletas"].append({
-                    "offset": offset,
+                    "offset": "_" if offset == 0 else offset,
                     "longitud": longitud,
                     "siguiente": siguiente
                 })
@@ -704,7 +745,7 @@ class InterfazTorneoAutomatica:
             }
             for offset, longitud, siguiente in comprimido:
                 est_lz77["tripletas"].append({
-                    "offset": offset,
+                    "offset": "_" if offset == 0 else offset,
                     "longitud": longitud,
                     "siguiente": siguiente
                 })
