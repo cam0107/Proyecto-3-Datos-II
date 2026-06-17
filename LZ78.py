@@ -34,8 +34,7 @@ def comprimir_lz78(texto_original):
             diccionario_json.append({"indice": indice_actual, "cadena": nueva_cadena})
             diccionario_interno[nueva_cadena] = indice_actual
             
-            # Empaquetamos el índice y el carácter en formato binario (2 bytes para el índice, 1 byte para el carácter)
-            datos_binarios.extend(struct.pack('>Hc', indice_salida, char.encode('utf-8')))
+            datos_binarios.extend(struct.pack('>Hc', indice_salida, char.encode('latin-1'))) # Empaquetamos el índice y el carácter en formato binario (2 bytes para el índice, 1 byte para el carácter)
             
             indice_actual += 1
             cadena_actual = ""
@@ -44,8 +43,7 @@ def comprimir_lz78(texto_original):
     if cadena_actual:
         indice_salida = diccionario_interno[cadena_actual]
         salida_json.append({"indice": indice_salida, "simbolo": ""})
-        # Usamos b'\x00' como caracter nulo de escape
-        datos_binarios.extend(struct.pack('>Hc', indice_salida, b'\x00'))
+        datos_binarios.extend(struct.pack('>Hc', indice_salida, b'\x00')) # Usamos un byte nulo para indicar que no hay símbolo adicional
 
     # Estructura final para el JSON de pistas
     estructura_pista = {
@@ -77,7 +75,7 @@ def descomprimir_lz78(datos_binarios):
         indice_padre, char_byte = struct.unpack('>Hc', bloque)
         
         # Si el carácter es el byte nulo, lo interpretamos como una cadena vacía
-        simbolo = "" if char_byte == b'\x00' else char_byte.decode('utf-8')
+        simbolo = "" if char_byte == b'\x00' else char_byte.decode('latin-1')
         
         prefijo = diccionario_reconstruccion[indice_padre] 
         nueva_cadena = prefijo + simbolo
@@ -102,7 +100,7 @@ if __name__ == "__main__":
     ruta_json = os.path.join(carpeta_pruebas, "pistasLZ78.json")
 
     # Definir texto de prueba
-    texto_prueba = "ABABABA"
+    texto_prueba = "EL GATO COME PESCADO Y EL PERRO COME HUESO"
     print(f"\nTexto original: '{texto_prueba}'")
 
     # Ejecutar función de compresión

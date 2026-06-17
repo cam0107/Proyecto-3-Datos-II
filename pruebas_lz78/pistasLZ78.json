@@ -1,0 +1,221 @@
+{
+    "compresion": [
+        {
+            "algoritmo": "LZ78",
+            "estructura": {
+                "diccionario": [
+                    {
+                        "indice": 1,
+                        "cadena": "E"
+                    },
+                    {
+                        "indice": 2,
+                        "cadena": "L"
+                    },
+                    {
+                        "indice": 3,
+                        "cadena": " "
+                    },
+                    {
+                        "indice": 4,
+                        "cadena": "G"
+                    },
+                    {
+                        "indice": 5,
+                        "cadena": "A"
+                    },
+                    {
+                        "indice": 6,
+                        "cadena": "T"
+                    },
+                    {
+                        "indice": 7,
+                        "cadena": "O"
+                    },
+                    {
+                        "indice": 8,
+                        "cadena": " C"
+                    },
+                    {
+                        "indice": 9,
+                        "cadena": "OM"
+                    },
+                    {
+                        "indice": 10,
+                        "cadena": "E "
+                    },
+                    {
+                        "indice": 11,
+                        "cadena": "P"
+                    },
+                    {
+                        "indice": 12,
+                        "cadena": "ES"
+                    },
+                    {
+                        "indice": 13,
+                        "cadena": "C"
+                    },
+                    {
+                        "indice": 14,
+                        "cadena": "AD"
+                    },
+                    {
+                        "indice": 15,
+                        "cadena": "O "
+                    },
+                    {
+                        "indice": 16,
+                        "cadena": "Y"
+                    },
+                    {
+                        "indice": 17,
+                        "cadena": " E"
+                    },
+                    {
+                        "indice": 18,
+                        "cadena": "L "
+                    },
+                    {
+                        "indice": 19,
+                        "cadena": "PE"
+                    },
+                    {
+                        "indice": 20,
+                        "cadena": "R"
+                    },
+                    {
+                        "indice": 21,
+                        "cadena": "RO"
+                    },
+                    {
+                        "indice": 22,
+                        "cadena": " CO"
+                    },
+                    {
+                        "indice": 23,
+                        "cadena": "M"
+                    },
+                    {
+                        "indice": 24,
+                        "cadena": "E H"
+                    },
+                    {
+                        "indice": 25,
+                        "cadena": "U"
+                    },
+                    {
+                        "indice": 26,
+                        "cadena": "ESO"
+                    }
+                ],
+                "salida": [
+                    {
+                        "indice": 0,
+                        "simbolo": "E"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "L"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": " "
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "G"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "A"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "T"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "O"
+                    },
+                    {
+                        "indice": 3,
+                        "simbolo": "C"
+                    },
+                    {
+                        "indice": 7,
+                        "simbolo": "M"
+                    },
+                    {
+                        "indice": 1,
+                        "simbolo": " "
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "P"
+                    },
+                    {
+                        "indice": 1,
+                        "simbolo": "S"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "C"
+                    },
+                    {
+                        "indice": 5,
+                        "simbolo": "D"
+                    },
+                    {
+                        "indice": 7,
+                        "simbolo": " "
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "Y"
+                    },
+                    {
+                        "indice": 3,
+                        "simbolo": "E"
+                    },
+                    {
+                        "indice": 2,
+                        "simbolo": " "
+                    },
+                    {
+                        "indice": 11,
+                        "simbolo": "E"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "R"
+                    },
+                    {
+                        "indice": 20,
+                        "simbolo": "O"
+                    },
+                    {
+                        "indice": 8,
+                        "simbolo": "O"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "M"
+                    },
+                    {
+                        "indice": 10,
+                        "simbolo": "H"
+                    },
+                    {
+                        "indice": 0,
+                        "simbolo": "U"
+                    },
+                    {
+                        "indice": 12,
+                        "simbolo": "O"
+                    }
+                ]
+            }
+        }
+    ]
+}

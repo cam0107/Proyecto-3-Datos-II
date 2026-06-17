@@ -14,6 +14,48 @@ def detectar_algoritmo_real(datos, datos_json=None):
     detectar qué algoritmo corresponde a los datos (bytes o string).
     Si datos_json está disponible, valida las firmas de los datos contra el JSON para evitar despistes.
     """
+    algoritmos_disponibles = None
+    if datos_json: # Extraemos los algoritmos disponibles del JSON para validar solo contra esos
+        algoritmos_disponibles = {
+            b.get("algoritmo")
+            for b in datos_json.get("compresion", [])
+            if isinstance(b, dict) and b.get("algoritmo")
+        }
+
+    if isinstance(datos, bytes) and datos_json: # Si tenemos datos JSON, validamos contra las estructuras de salida de cada algoritmo para evitar falsos positivos
+        compresiones = datos_json.get("compresion", [])
+
+        # Primero intentamos coincidencias exactas de las capas binarias.
+        lzw_salida = None
+        for b in compresiones:
+            if b.get("algoritmo") == "LZW":
+                lzw_salida = b.get("estructura", {}).get("salida")
+                break
+        if lzw_salida:
+            import struct
+            if len(datos) % 2 == 0:
+                unpacked_lzw = []
+                for i in range(0, len(datos), 2):
+                    unpacked_lzw.append(struct.unpack('H', datos[i:i+2])[0])
+                if unpacked_lzw == lzw_salida:
+                    return "LZW"
+
+        lz78_salida = None
+        for b in compresiones:
+            if b.get("algoritmo") == "LZ78":
+                lz78_salida = b.get("estructura", {}).get("salida")
+                break
+        if lz78_salida:
+            import struct
+            if len(datos) % 3 == 0:
+                unpacked_lz78 = []
+                for i in range(0, len(datos), 3):
+                    idx, sym_byte = struct.unpack('>Hc', datos[i:i+3])
+                    sym = "" if sym_byte == b'\x00' else sym_byte.decode('utf-8', errors='ignore')
+                    unpacked_lz78.append({"indice": idx, "simbolo": sym})
+                if unpacked_lz78 == lz78_salida:
+                    return "LZ78"
+
     try:
         if isinstance(datos, bytes):
             # Si contiene ceros y unos legibles en ASCII (Huffman en formato texto)
@@ -25,16 +67,16 @@ def detectar_algoritmo_real(datos, datos_json=None):
             text = str(datos).strip()
             
         # 1. LZ77 check (parentesis y comas)
-        if text.startswith('(') or '(' in text:
+        if (algoritmos_disponibles is None or "LZ77" in algoritmos_disponibles) and (text.startswith('(') or '(' in text):
             if ',' in text and ')' in text:
                 return "LZ77"
                 
         # 2. Huffman check (solo '0' y '1')
-        if text and all(c in ('0', '1') for c in text):
+        if (algoritmos_disponibles is None or "Huffman" in algoritmos_disponibles) and text and all(c in ('0', '1') for c in text):
             return "Huffman"
             
         # 3. LZW text check (enteros separados por espacio)
-        if text and all(w.isdigit() for w in text.split()):
+        if (algoritmos_disponibles is None or "LZW" in algoritmos_disponibles) and text and all(w.isdigit() for w in text.split()):
             return "LZW"
     except Exception:
         pass
@@ -82,15 +124,28 @@ def detectar_algoritmo_real(datos, datos_json=None):
                         return "LZ78"
                 
                 # --- C. Verificar Huffman ---
-                huffman_active = False
+                huffman_struct = None
                 for b in compresiones:
                     if b.get("algoritmo") == "Huffman":
-                        huffman_active = "arbol" in b.get("estructura", {})
+                        huffman_struct = b.get("estructura", {})
                         break
-                if huffman_active:
-                    return "Huffman"
-            
-            # Fallback si datos_json es None o no dio coincidencia exacta
+                if huffman_struct and "arbol" in huffman_struct and "tabla_codigos" in huffman_struct:
+                    try:
+                        root = huffman.deserialize_tree(huffman_struct.get("arbol"))
+                        codes = huffman_struct.get("tabla_codigos", {})
+                        bit_string = huffman.bytes_to_bitstring(datos)
+                        decoded_text = huffman.decode_bits(bit_string, root)
+                        if huffman.bitstring_to_bytes(huffman.encode_text(decoded_text, codes)) == datos:
+                            return "Huffman"
+                    except Exception:
+                        pass
+
+            # Si hay JSON disponible y no hubo coincidencia exacta, no adivinamos
+            # por longitud: eso puede confundir texto plano con una capa comprimida.
+            if datos_json:
+                return None
+
+            # Fallback si datos_json es None
             is_lz78_possible = (length % 3 == 0)
             is_lzw_possible = (length % 2 == 0)
             
