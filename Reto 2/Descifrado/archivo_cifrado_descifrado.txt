@@ -1,0 +1,22 @@
+------------------------------------------------------------
+RESULTADO PRINCIPAL (mayor probabilidad)
+------------------------------------------------------------
+
+clave: tEc123
+mensaje: lA caraCatrepA trepA con Cinco CaracaTrepitOs, cuAndo lA caraCatrepA trepA elloS trepAn.
+confianza: 42.86
+
+
+------------------------------------------------------------
+CANDIDATOS DE RESPALDO (por si el principal no es correcto)
+------------------------------------------------------------
+
+Candidato #2
+  clave: tec123
+  mensaje: la caracatrepa trepa con cinco caracatrepitos, cuando la caracatrepa trepa ellos trepan.
+  confianza: 42.86
+
+Candidato #3
+  clave: tEc&23
+  mensaje: lA taraCacrepA crepA ton Ciyco CaeacaTrrpitOs; cuAnso lA taraCacrepA crepA rlloS crepAn9
+  confianza: 37.84
