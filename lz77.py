@@ -112,12 +112,14 @@ def generar_json_lz77(
         ]
     }
 
-    for offset, longitud, siguiente in tripletas:
+    for idx, (offset, longitud, siguiente) in enumerate(tripletas):
+        offset_val = "_" if idx == 0 else offset
+        siguiente_val = "_" if (siguiente == "" or siguiente is None) else siguiente
         datos["compresion"][0]["estructura"]["tripletas"].append(
             {
-                "offset": "_" if offset == 0 else offset,
+                "offset": offset_val,
                 "longitud": longitud,
-                "siguiente": siguiente
+                "siguiente": siguiente_val
             }
         )
 
@@ -155,11 +157,16 @@ def obtener_tripletas(datos_json):
             for t in estructura.get("tripletas", []):
                 offset_val = t["offset"]
                 offset = 0 if offset_val == "_" or offset_val == 0 or not offset_val else int(offset_val)
+                siguiente_val = t["siguiente"]
+                if siguiente_val in ("_", "null", "None") or not siguiente_val:
+                    siguiente = ""
+                else:
+                    siguiente = siguiente_val
                 tripletas.append(
                     (
                         offset,
                         int(t["longitud"]),
-                        t["siguiente"]
+                        siguiente
                     )
                 )
             break
@@ -168,10 +175,15 @@ def obtener_tripletas(datos_json):
 
 
 def guardar(nombre, datos):
+    contenido_lista = []
+    for idx, (distancia, longitud, caracter) in enumerate(datos):
+        dist_str = "_" if idx == 0 else str(distancia)
+        caracter_str = "_" if (caracter == "" or caracter is None) else caracter
+        contenido_lista.append(f"({dist_str},{longitud},{caracter_str})")
+    contenido = "".join(contenido_lista)
+    datos_binarios = contenido.encode('ascii', errors='replace')
     with open(nombre, "wb") as archivo:
-        for distancia, longitud, caracter in datos:
-            caracter_val = ord(caracter) if caracter else 0
-            archivo.write(struct.pack('>HHI', distancia, longitud, caracter_val))
+        archivo.write(datos_binarios)
 
 
 def cargar(nombre):
@@ -182,43 +194,34 @@ def cargar(nombre):
     if not bytes_data:
         return datos
         
-    # Si detecta que es formato de texto ASCII (comienza con '(' que es 0x28)
-    if bytes_data[0] == 0x28:
-        contenido = bytes_data.decode('utf-8', errors='ignore').strip()
-        i = 0
-        while i < len(contenido):
-            if contenido[i] == '(':
-                first_comma = contenido.find(',', i)
-                if first_comma == -1:
-                    break
-                second_comma = contenido.find(',', first_comma + 1)
-                if second_comma == -1:
-                    break
-                close_paren = contenido.find(')', second_comma + 1)
-                if close_paren == -1:
-                    break
-                    
-                dist_str = contenido[i+1:first_comma].strip()
-                distancia = 0 if dist_str == '_' or not dist_str else int(dist_str)
-                
-                len_str = contenido[first_comma+1:second_comma].strip()
-                longitud = 0 if len_str == '_' or not len_str else int(len_str)
-                
-                caracter = contenido[second_comma+1:close_paren]
-                
-                datos.append((distancia, longitud, caracter))
-                i = close_paren + 1
-            else:
-                i += 1
-    else:
-        # Formato binario puro de bloques de 8 bytes (HHI)
-        for i in range(0, len(bytes_data), 8):
-            bloque = bytes_data[i:i+8]
-            if len(bloque) < 8:
+    contenido = bytes_data.decode('ascii', errors='replace').strip()
+    i = 0
+    while i < len(contenido):
+        if contenido[i] == '(':
+            first_comma = contenido.find(',', i)
+            if first_comma == -1:
                 break
-            distancia, longitud, caracter_val = struct.unpack('>HHI', bloque)
-            caracter = chr(caracter_val) if caracter_val > 0 else ""
+            second_comma = contenido.find(',', first_comma + 1)
+            if second_comma == -1:
+                break
+            close_paren = contenido.find(')', second_comma + 1)
+            if close_paren == -1:
+                break
+                
+            dist_str = contenido[i+1:first_comma].strip()
+            distancia = 0 if dist_str == '_' or not dist_str else int(dist_str)
+            
+            len_str = contenido[first_comma+1:second_comma].strip()
+            longitud = 0 if len_str == '_' or not len_str else int(len_str)
+            
+            caracter = contenido[second_comma+1:close_paren]
+            if caracter in ("_", "null", "None") or not caracter:
+                caracter = ""
+                
             datos.append((distancia, longitud, caracter))
+            i = close_paren + 1
+        else:
+            i += 1
             
     return datos
 
