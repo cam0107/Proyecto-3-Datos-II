@@ -4,25 +4,23 @@ import os
 import json
 import sys
 
-# Asegurar que el directorio del Reto 3 esté en el path para importar los módulos de lógica
 directorio_actual = os.path.dirname(os.path.abspath(__file__))
 if directorio_actual not in sys.path:
     sys.path.append(directorio_actual)
 
-from corrupción_archivos import aplicar_corrupcion_checksum
+from corrupción_archivos import aplicar_corrupcion_checksum, aplicar_corrupcion_crc
 from corrección_checksum import procesar_json_checksum
 
 class InterfazReto3:
     def __init__(self, root):
         self.root = root
-        self.root.title("Reto 3 - Detección y Corrección de Errores (Checksum)")
-        self.root.geometry("780x660")
+        self.root.title("Reto 3 - Detección y Corrección de Errores (Checksum / CRC)")
+        self.root.geometry("780x690")
         self.root.resizable(False, False)
         
         self.ruta_txt_original = ""
         self.ruta_json_pistas = ""
         
-        # Pestañas principales
         self.notebook = ttk.Notebook(root)
         self.tab_corromper = ttk.Frame(self.notebook)
         self.tab_corregir = ttk.Frame(self.notebook)
@@ -34,11 +32,7 @@ class InterfazReto3:
         self.setup_pestana_corromper()
         self.setup_pestana_corregir()
 
-#--------------------------------------------------------------------------
-# corrupción de archivos
-#--------------------------------------------------------------------------
     def setup_pestana_corromper(self):
-        # Frame de configuración
         lbl_comp = ttk.LabelFrame(self.tab_corromper, text=" Configuración de Corrupción ")
         lbl_comp.pack(fill="x", padx=20, pady=15)
         
@@ -50,6 +44,14 @@ class InterfazReto3:
         self.ent_txt_in.pack(side="left", padx=5, expand=True, fill="x")
         ttk.Button(frame_input, text="Buscar TXT", command=self.seleccionar_archivo_txt).pack(side="right")
         
+        # Selector de Algoritmo 
+        frame_algo = ttk.Frame(lbl_comp)
+        frame_algo.pack(fill="x", padx=15, pady=5)
+        ttk.Label(frame_algo, text="Algoritmo de Verificación:", width=24, anchor="w").pack(side="left")
+        self.combo_algoritmo = ttk.Combobox(frame_algo, values=["Checksum Simple", "CRC"], state="readonly", width=18)
+        self.combo_algoritmo.set("Checksum Simple")
+        self.combo_algoritmo.pack(side="left", padx=5)
+        
         # Cantidad de errores
         frame_spin = ttk.Frame(lbl_comp)
         frame_spin.pack(fill="x", padx=15, pady=5)
@@ -60,7 +62,7 @@ class InterfazReto3:
         
         ttk.Button(lbl_comp, text="¡Corromper y Guardar!", command=self.ejecutar_corrupcion).pack(pady=10)
         
-        # Frame de visualización
+        # Visualización
         lbl_prev = ttk.LabelFrame(self.tab_corromper, text=" Previsualización de Datos ")
         lbl_prev.pack(fill="both", expand=True, padx=20, pady=(0, 15))
         
@@ -71,11 +73,11 @@ class InterfazReto3:
         ttk.Label(lbl_prev, text="Mensaje Original", font=("Arial", 10, "bold")).grid(row=0, column=0, pady=(0, 5))
         ttk.Label(lbl_prev, text="Mensaje Corrupto", font=("Arial", 10, "bold")).grid(row=0, column=1, pady=(0, 5))
         
-        self.txt_original = tk.Text(lbl_prev, height=18, width=35, bg="#f4f4f4", font=("Consolas", 10))
+        self.txt_original = tk.Text(lbl_prev, height=16, width=35, bg="#f4f4f4", font=("Consolas", 10))
         self.txt_original.grid(row=1, column=0, padx=5, sticky="nsew")
         self.txt_original.config(state="disabled")
         
-        self.txt_corrupto = tk.Text(lbl_prev, height=18, width=35, bg="#f4f4f4", font=("Consolas", 10))
+        self.txt_corrupto = tk.Text(lbl_prev, height=16, width=35, bg="#f4f4f4", font=("Consolas", 10))
         self.txt_corrupto.grid(row=1, column=1, padx=5, sticky="nsew")
         self.txt_corrupto.config(state="disabled")
 
@@ -113,21 +115,25 @@ class InterfazReto3:
             with open(self.ruta_txt_original, 'r', encoding='utf-8') as f:
                 texto_original = f.read()
                 
-            if cantidad > len(texto_original):
-                messagebox.showerror("Error", "La cantidad de errores no puede exceder la longitud del mensaje.")
-                return
+            # Ejecutar algoritmo según selección del Combobox
+            algo_seleccionado = self.combo_algoritmo.get()
+            
+            if algo_seleccionado == "CRC":
+                respuesta = aplicar_corrupcion_crc(texto_original, cantidad)
+            else:
+                if cantidad > len(texto_original):
+                    messagebox.showerror("Error", "La cantidad de errores no puede exceder la longitud del mensaje.")
+                    return
+                respuesta = aplicar_corrupcion_checksum(texto_original, cantidad)
                 
-            respuesta = aplicar_corrupcion_checksum(texto_original, cantidad)
             texto_corrupto = respuesta["texto_corrupto"]
             diccionario_pistas = respuesta["json_pistas"]
             
-            # Mostrar resultado corrupto en pantalla
             self.txt_corrupto.config(state="normal")
             self.txt_corrupto.delete("1.0", "end")
             self.txt_corrupto.insert("end", texto_corrupto)
             self.txt_corrupto.config(state="disabled")
             
-            # Rutas automáticas
             proyecto_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             dir_salidas = os.path.join(proyecto_dir, "salidas")
             dir_json = os.path.join(proyecto_dir, "json")
@@ -139,7 +145,6 @@ class InterfazReto3:
             ruta_salida_txt = os.path.join(dir_salidas, f"{nombre_base}_corrupto.txt")
             ruta_salida_json = os.path.join(dir_json, f"{nombre_base}_pistas_reto3.json")
             
-            # Guardar archivos
             with open(ruta_salida_txt, 'w', encoding='utf-8') as f_txt:
                 f_txt.write(texto_corrupto)
                 
@@ -148,7 +153,7 @@ class InterfazReto3:
                 
             messagebox.showinfo(
                 "Éxito", 
-                f"Archivos generados con éxito:\n\n"
+                f"Archivos generados con ({algo_seleccionado}):\n\n"
                 f"• Texto Corrupto: salidas/{os.path.basename(ruta_salida_txt)}\n"
                 f"• Pistas de Verificación: json/{os.path.basename(ruta_salida_json)}"
             )
@@ -156,15 +161,10 @@ class InterfazReto3:
         except Exception as e:
             messagebox.showerror("Error", f"Fallo al aplicar corrupción:\n{str(e)}")
 
-#--------------------------------------------------------------------------
-#  Correción de archivos
-#--------------------------------------------------------------------------
     def setup_pestana_corregir(self):
-        # Frame de configuración
         lbl_arreglar = ttk.LabelFrame(self.tab_corregir, text=" Configuración de Restauración ")
         lbl_arreglar.pack(fill="x", padx=20, pady=15)
         
-        # Selección de archivo JSON
         frame_input = ttk.Frame(lbl_arreglar)
         frame_input.pack(fill="x", padx=15, pady=5)
         ttk.Label(frame_input, text="Archivo JSON de Pistas:", width=20, anchor="w").pack(side="left")
@@ -174,11 +174,9 @@ class InterfazReto3:
         
         ttk.Button(lbl_arreglar, text="¡Restaurar y Arreglar!", command=self.ejecutar_correccion).pack(pady=10)
         
-        # Frame de Reporte y Vista
         self.frame_reporte = ttk.LabelFrame(self.tab_corregir, text=" Reporte y Mensaje Restaurado ")
         self.frame_reporte.pack(fill="both", expand=True, padx=20, pady=(0, 15))
         
-        # Panel de etiquetas estadísticas
         stats_frame = ttk.Frame(self.frame_reporte)
         stats_frame.pack(fill="x", padx=15, pady=5)
         
@@ -191,7 +189,6 @@ class InterfazReto3:
         self.lbl_errores = ttk.Label(stats_frame, text="Errores detectados y corregidos: -", font=("Arial", 10), foreground="red")
         self.lbl_errores.pack(anchor="w", pady=2)
         
-        # Visualizador de texto restaurado
         ttk.Label(self.frame_reporte, text="Mensaje Restaurado Limpio:", font=("Arial", 10, "bold")).pack(anchor="w", padx=15, pady=(10, 2))
         self.txt_restaurado = tk.Text(self.frame_reporte, height=12, bg="#f4f4f4", font=("Consolas", 10))
         self.txt_restaurado.pack(fill="both", expand=True, padx=15, pady=(0, 10))
@@ -212,18 +209,15 @@ class InterfazReto3:
             return
             
         try:
-            # Ejecutar la lógica de corrección y capturar reporte en diccionario
             reporte = procesar_json_checksum(self.ruta_json_pistas)
             mensaje_restaurado = reporte["mensaje_restaurado"]
             errores = reporte["errores_detectados"]
             total = reporte["total_caracteres"]
             
-            # Cargar y parsear archivo de pistas para leer metadata en la interfaz
             with open(self.ruta_json_pistas, 'r', encoding='utf-8') as f:
                 datos_js = json.load(f)
-            alg = datos_js.get("metadata", {}).get("algorithm", "Desconocido")
+            alg = datos_js.get("metadata", {}).get("algorithm") or datos_js.get("algoritmo", "Desconocido")
             
-            # Actualizar reporte estadístico en la GUI
             self.lbl_algoritmo.config(text=f"Algoritmo de Verificación: {alg}")
             self.lbl_total.config(text=f"Total de caracteres: {total}")
             self.lbl_errores.config(
@@ -231,13 +225,11 @@ class InterfazReto3:
                 foreground="green" if errores == 0 else "red"
             )
             
-            # Mostrar texto restaurado en la GUI
             self.txt_restaurado.config(state="normal")
             self.txt_restaurado.delete("1.0", "end")
             self.txt_restaurado.insert("end", mensaje_restaurado)
             self.txt_restaurado.config(state="disabled")
             
-            # Guardar el mensaje restaurado automáticamente en salidas/
             proyecto_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             dir_salidas = os.path.join(proyecto_dir, "salidas")
             os.makedirs(dir_salidas, exist_ok=True)
@@ -260,7 +252,6 @@ class InterfazReto3:
             
         except Exception as e:
             messagebox.showerror("Error", f"Fallo al procesar y restaurar:\n{str(e)}")
-
 
 if __name__ == "__main__":
     root = tk.Tk()
