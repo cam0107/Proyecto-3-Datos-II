@@ -143,10 +143,14 @@ class InterfazReto3:
             
             nombre_base = os.path.splitext(os.path.basename(self.ruta_txt_original))[0]
             ruta_salida_txt = os.path.join(dir_salidas, f"{nombre_base}_corrupto.txt")
+            ruta_salida_bin = os.path.join(dir_salidas, f"{nombre_base}_corrupto.bin")
             ruta_salida_json = os.path.join(dir_json, f"{nombre_base}_pistas_reto3.json")
             
             with open(ruta_salida_txt, 'w', encoding='utf-8') as f_txt:
                 f_txt.write(texto_corrupto)
+
+            with open(ruta_salida_bin, 'wb') as f_bin:
+                f_bin.write(texto_corrupto.encode('latin-1'))
                 
             with open(ruta_salida_json, 'w', encoding='utf-8') as f_json:
                 json.dump(diccionario_pistas, f_json, indent=4, ensure_ascii=False)
@@ -155,6 +159,7 @@ class InterfazReto3:
                 "Éxito", 
                 f"Archivos generados con ({algo_seleccionado}):\n\n"
                 f"• Texto Corrupto: salidas/{os.path.basename(ruta_salida_txt)}\n"
+                f"• Binario Corrupto: salidas/{os.path.basename(ruta_salida_bin)}\n"
                 f"• Pistas de Verificación: json/{os.path.basename(ruta_salida_json)}"
             )
             
