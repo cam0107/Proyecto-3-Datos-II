@@ -126,28 +126,27 @@ import struct
 
 def guardar_archivo_binario(codigos, nombre_archivo="mensaje_comprimido.bin"):
     """
-    Toma la lista de enteros del LZW y los guarda en un archivo binario puro
-    utilizando bloques fijos de 16-bits (2 bytes por código, formato 'H' unsigned short).
+    Toma la lista de enteros del LZW y los guarda como texto codificado en ASCII,
+    siguiendo el formato estricto del profesor para los archivos .bin.
     """
+    texto = " ".join(map(str, codigos))
+    datos_binarios = texto.encode('ascii', errors='replace')
     with open(nombre_archivo, 'wb') as f:
-        for codigo in codigos:
-            # 'H' representa un entero de 16 bits sin signo (unsigned short)
-            f.write(struct.pack('H', codigo))
-    print(f"✔ Archivo binario generado con éxito: '{nombre_archivo}'")
+        f.write(datos_binarios)
+    print(f"[OK] Archivo binario generado con éxito: '{nombre_archivo}'")
 
 def leer_archivo_binario(nombre_archivo="mensaje_comprimido.bin"):
     """
-    Lee el archivo binario del rival y extrae los códigos de 16-bits
-    para poder pasárselos directamente al descompresor.
+    Lee el archivo binario del rival (guardado como texto ASCII según el formato).
     """
-    codigos = []
     with open(nombre_archivo, 'rb') as f:
-        buffer = f.read(2) # Leer de 2 en 2 bytes
-        while buffer:
-            if len(buffer) == 2:
-                codigo = struct.unpack('H', buffer)[0]
-                codigos.append(codigo)
-            buffer = f.read(2)
+        datos_binarios = f.read()
+    
+    texto = datos_binarios.decode('ascii', errors='replace').strip()
+    if not texto:
+        return []
+        
+    codigos = [int(x) for x in texto.split()]
     return codigos
 
 

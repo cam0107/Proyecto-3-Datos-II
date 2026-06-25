@@ -19,7 +19,7 @@ def comprimir_lz78(texto_original):
     diccionario_json = [] # Lista para el JSON de pistas
     salida_json = [] # Lista para la salida de pistas (índice + símbolo)
     
-    datos_binarios = bytearray() # Usamos bytearray para construir los bytes de salida de forma eficiente
+    texto_salida = "" # Usamos un string para construir el formato de texto del profesor
     
     indice_actual = 1 # Comenzamos en 1 porque el índice 0 se reserva para la cadena vacía
     cadena_actual = "" 
@@ -40,7 +40,7 @@ def comprimir_lz78(texto_original):
             diccionario_json.append({"indice": indice_actual, "cadena": nueva_cadena})
             diccionario_interno[nueva_cadena] = indice_actual
             
-            datos_binarios.extend(struct.pack('>Hc', indice_salida, char.encode('ascii'))) # Empaquetamos el índice y el carácter en formato binario (2 bytes para el índice, 1 byte para el carácter)
+            texto_salida += f"({indice_salida},{char})"
             
             indice_actual += 1
             cadena_actual = ""
@@ -49,7 +49,10 @@ def comprimir_lz78(texto_original):
     if cadena_actual:
         indice_salida = diccionario_interno[cadena_actual]
         salida_json.append({"indice": indice_salida, "simbolo": ""})
-        datos_binarios.extend(struct.pack('>Hc', indice_salida, b'\x00')) # Usamos un byte nulo para indicar que no hay símbolo adicional
+        texto_salida += f"({indice_salida},)"
+
+    # Convertimos a ASCII según el formato del profesor
+    bytes_comprimidos = texto_salida.encode('ascii', errors='replace')
 
     # Estructura final para el JSON de pistas
     estructura_pista = {
@@ -60,36 +63,50 @@ def comprimir_lz78(texto_original):
         }
     }
     
-    return bytes(datos_binarios), estructura_pista
+    return bytes_comprimidos, estructura_pista
 
 def descomprimir_lz78(datos_binarios):
     """
-    Descomprime una secuencia de bytes empaquetados con LZ78.
+    Descomprime una secuencia de bytes empaquetados con LZ78 (formato ASCII del profesor).
     Retorna el string de texto recuperado.
     """
+    texto = datos_binarios.decode('ascii', errors='replace').strip()
     diccionario_reconstruccion = {0: ""} 
     texto_recuperado = "" 
     siguiente_indice = 1
     
-    # Recorremos los bytes de 3 en 3 (porque guardamos 2 del índice y 1 del carácter)
-    for i in range(0, len(datos_binarios), 3):
-        bloque = datos_binarios[i:i+3]
-        if len(bloque) < 3:
-            break
+    i = 0
+    while i < len(texto):
+        if texto[i] == '(':
+            comma_idx = texto.find(',', i)
+            if comma_idx == -1: break
             
-        # Desempaquetamos los bytes a sus valores originales
-        indice_padre, char_byte = struct.unpack('>Hc', bloque)
-        
-        # Si el carácter es el byte nulo, lo interpretamos como una cadena vacía
-        simbolo = "" if char_byte == b'\x00' else char_byte.decode('ascii')
-        
-        prefijo = diccionario_reconstruccion[indice_padre] 
-        nueva_cadena = prefijo + simbolo
-        texto_recuperado += nueva_cadena
-        
-        if simbolo != "": # Solo agregamos al diccionario si el símbolo no es vacío
-            diccionario_reconstruccion[siguiente_indice] = nueva_cadena
-            siguiente_indice += 1
+            close_paren = texto.find(')', comma_idx + 1)
+            # Manejar el caso donde el caracter guardado era un parentesis de cierre
+            if close_paren != -1 and close_paren == comma_idx + 1 and i + 1 < len(texto) and comma_idx + 2 < len(texto) and texto[comma_idx+2] == ')':
+                close_paren = comma_idx + 2
+                
+            if close_paren == -1: break
+            
+            indice_str = texto[i+1:comma_idx].strip()
+            indice_padre = int(indice_str) if indice_str else 0
+            
+            simbolo = texto[comma_idx+1:close_paren]
+            # Si guardamos espacios, quitamos el espacio al inicio de haberlo
+            if len(simbolo) > 0 and simbolo[0] == ' ' and close_paren > comma_idx + 2:
+                simbolo = simbolo[1:]
+
+            prefijo = diccionario_reconstruccion[indice_padre] 
+            nueva_cadena = prefijo + simbolo
+            texto_recuperado += nueva_cadena
+            
+            if simbolo != "": # Solo agregamos al diccionario si el símbolo no es vacío
+                diccionario_reconstruccion[siguiente_indice] = nueva_cadena
+                siguiente_indice += 1
+                
+            i = close_paren + 1
+        else:
+            i += 1
             
     return texto_recuperado
 

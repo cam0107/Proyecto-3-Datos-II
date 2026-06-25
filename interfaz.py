@@ -135,9 +135,9 @@ def detectar_algoritmo_real(datos, datos_json=None):
                     try:
                         root = huffman.deserialize_tree(huffman_struct.get("arbol"))
                         codes = huffman_struct.get("tabla_codigos", {})
-                        bit_string = huffman.bytes_to_bitstring(datos)
+                        bit_string = datos.decode('ascii', errors='replace').strip()
                         decoded_text = huffman.decode_bits(bit_string, root)
-                        if huffman.bitstring_to_bytes(huffman.encode_text(decoded_text, codes)) == datos:
+                        if huffman.encode_text(decoded_text, codes).encode('ascii', errors='replace') == datos:
                             return "Huffman"
                     except Exception:
                         pass
@@ -450,7 +450,7 @@ class InterfazTorneoAutomatica:
                         if all(b_val in (0x30, 0x31, 0x0a, 0x0d, 0x20) for b_val in datos_actuales):
                             bit_string = datos_actuales.decode('utf-8', errors='ignore').strip()
                         else:
-                            bit_string = huffman.bytes_to_bitstring(datos_actuales)
+                            bit_string = datos_actuales.decode('ascii', errors='replace').strip()
                     else:
                         bit_string = str(datos_actuales).strip()
                     
@@ -633,7 +633,7 @@ class InterfazTorneoAutomatica:
                 root = huffman.build_huffman_tree(string_puente_intermedio)
                 codes = huffman.generate_codes(root)
                 bits_finales = huffman.encode_text(string_puente_intermedio, codes)
-                bytes_finales = huffman.bitstring_to_bytes(bits_finales)
+                bytes_finales = bits_finales.encode('ascii', errors='replace')
                 with open(r_bin, 'wb') as f_out: f_out.write(bytes_finales)
                 pistas_capa_2 = huffman.generate_json_structure(root, codes)["compresion"][0]
             elif algo2 == "LZ78":
@@ -882,7 +882,7 @@ class InterfazTorneoAutomatica:
             root_node = huffman.build_huffman_tree(texto)
             codes = huffman.generate_codes(root_node)
             encoded_text = huffman.encode_text(texto, codes)
-            bytes_finales = huffman.bitstring_to_bytes(encoded_text)
+            bytes_finales = encoded_text.encode('ascii', errors='replace')
             with open(r_bin, 'wb') as f_bin: f_bin.write(bytes_finales)
             
             # Generar JSON unificado
@@ -908,7 +908,7 @@ class InterfazTorneoAutomatica:
             if all(b_val in (0x30, 0x31, 0x0a, 0x0d, 0x20) for b_val in bytes_data):
                 bit_string = bytes_data.decode('utf-8', errors='ignore').strip()
             else:
-                bit_string = huffman.bytes_to_bitstring(bytes_data)
+                bit_string = bytes_data.decode('ascii', errors='replace').strip()
                 
             with open(j, 'r', encoding='utf-8') as f_json: datos_json = json.load(f_json)
             

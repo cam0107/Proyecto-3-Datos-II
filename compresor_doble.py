@@ -26,9 +26,9 @@ def comprimir_lzw_mas_huffman(ruta_txt_ingreso, ruta_bin_salida, ruta_json_salid
     bits_encriptados = huffman.encode_text(texto_intermedio, codigos_huffman)
 
     # GUARDAR ARCHIVO BINARIO (.bin)
-
-    with open(ruta_bin_salida, 'w', encoding='utf-8') as f_bin:
-        f_bin.write(bits_encriptados)
+    datos_binarios = bits_encriptados.encode('ascii', errors='replace')
+    with open(ruta_bin_salida, 'wb') as f_bin:
+        f_bin.write(datos_binarios)
 
     #GENERAR EL JSON DE PISTAS DOBLE
     # Estructura de pistas de Huffman

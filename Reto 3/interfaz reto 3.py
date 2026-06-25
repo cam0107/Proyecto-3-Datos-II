@@ -150,7 +150,7 @@ class InterfazReto3:
                 f_txt.write(texto_corrupto)
 
             with open(ruta_salida_bin, 'wb') as f_bin:
-                f_bin.write(texto_corrupto.encode('latin-1'))
+                f_bin.write(texto_corrupto.encode('ascii', errors='replace'))
                 
             with open(ruta_salida_json, 'w', encoding='utf-8') as f_json:
                 json.dump(diccionario_pistas, f_json, indent=4, ensure_ascii=False)
